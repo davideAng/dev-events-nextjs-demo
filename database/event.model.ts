@@ -126,26 +126,34 @@ eventSchema.pre<EventDocument>('save', function (this: EventDocument) {
 
   // Validate and normalize date to ISO format (YYYY-MM-DD)
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  const normalizeDate = (value: string) => {
-    if (dateRegex.test(value)) {
-      const [y, m, d] = value.split('-').map(Number);
-      const parsed = new Date(Date.UTC(y, m - 1, d));
-      if (
-        parsed.getUTCFullYear() !== y ||
-        parsed.getUTCMonth() !== m - 1 ||
-        parsed.getUTCDate() !== d
-      ) {
-        throw new Error('Date must be a valid calendar date in YYYY-MM-DD format');
-      }
-      return parsed.toISOString().split('T')[0];
-    }
-    const parsed = new Date(value);
-    if (isNaN(parsed.getTime())) {
+  if (dateRegex.test(this.date)) {
+    // Parse and validate calendar date components for YYYY-MM-DD format
+    const [yearStr, monthStr, dayStr] = this.date.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const day = parseInt(dayStr, 10);
+    
+    // Construct a Date object and verify components match input (validates real calendar dates)
+    const parsedDate = new Date(year, month - 1, day);
+    if (
+      parsedDate.getFullYear() !== year ||
+      parsedDate.getMonth() !== month - 1 ||
+      parsedDate.getDate() !== day
+    ) {
       throw new Error('Date must be in YYYY-MM-DD format or a valid date string');
     }
-    return parsed.toISOString().split('T')[0];
-  };
-  this.date = normalizeDate(this.date);
+  } else {
+    // For non-YYYY-MM-DD format strings, attempt to parse as valid date
+    try {
+      const parsedDate = new Date(this.date);
+      if (isNaN(parsedDate.getTime())) {
+        throw new Error('Invalid date format');
+      }
+      this.date = parsedDate.toISOString().split('T')[0];
+    } catch {
+      throw new Error('Date must be in YYYY-MM-DD format or a valid date string');
+    }
+  }
 
   // Validate time format (HH:mm)
   const timeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/;
