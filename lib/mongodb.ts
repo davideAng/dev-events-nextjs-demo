@@ -22,11 +22,9 @@ if (!MONGODB_URI) {
 }
 
 /**
- * Initialize or return a cached Mongoose connection for the application.
+ * Initialize or return a cached MongoDB connection to avoid creating multiple connections during development and hot reloads.
  *
- * Reuses a global cached connection to avoid creating multiple connections during development hot reloads.
- *
- * @returns The Mongoose Connection instance used for database operations.
+ * @returns The Mongoose Connection object.
  */
 async function connectDB(): Promise<Connection> {
   // Return cached connection if available
