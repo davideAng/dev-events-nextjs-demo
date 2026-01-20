@@ -126,17 +126,26 @@ eventSchema.pre<EventDocument>('save', function (this: EventDocument) {
 
   // Validate and normalize date to ISO format (YYYY-MM-DD)
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRegex.test(this.date)) {
-    try {
-      const parsedDate = new Date(this.date);
-      if (isNaN(parsedDate.getTime())) {
-        throw new Error('Invalid date format');
+  const normalizeDate = (value: string) => {
+    if (dateRegex.test(value)) {
+      const [y, m, d] = value.split('-').map(Number);
+      const parsed = new Date(Date.UTC(y, m - 1, d));
+      if (
+        parsed.getUTCFullYear() !== y ||
+        parsed.getUTCMonth() !== m - 1 ||
+        parsed.getUTCDate() !== d
+      ) {
+        throw new Error('Date must be a valid calendar date in YYYY-MM-DD format');
       }
-      this.date = parsedDate.toISOString().split('T')[0];
-    } catch {
+      return parsed.toISOString().split('T')[0];
+    }
+    const parsed = new Date(value);
+    if (isNaN(parsed.getTime())) {
       throw new Error('Date must be in YYYY-MM-DD format or a valid date string');
     }
-  }
+    return parsed.toISOString().split('T')[0];
+  };
+  this.date = normalizeDate(this.date);
 
   // Validate time format (HH:mm)
   const timeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/;
