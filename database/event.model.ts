@@ -1,9 +1,9 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 /**
- * EventDocument interface - defines the structure of an Event document
+ * IEvent interface - defines the structure of an Event document
  */
-interface EventDocument extends Document {
+interface IEvent extends Document {
   title: string;
   slug: string;
   description: string;
@@ -25,7 +25,7 @@ interface EventDocument extends Document {
 /**
  * Event Schema with validation and pre-save hooks
  */
-const eventSchema = new Schema<EventDocument>(
+const eventSchema = new Schema<IEvent>(
   {
     title: {
       type: String,
@@ -110,18 +110,38 @@ const eventSchema = new Schema<EventDocument>(
 /**
  * Pre-save hook for slug generation, date normalization, and validation
  * - Generates URL-friendly slug from title only if title has changed
+ * - Checks for slug collisions and appends deterministic suffix if needed
  * - Normalizes date to ISO format (YYYY-MM-DD)
  * - Validates time format (HH:mm)
  */
-eventSchema.pre<EventDocument>('save', function (this: EventDocument) {
+eventSchema.pre<IEvent>('save', async function (this: IEvent) {
   // Generate slug only if title is new or has been modified
   if (this.isNew || this.isModified('title')) {
-    this.slug = this.title
+    // Generate normalized base slug
+    const baseSlug = this.title
       .toLowerCase()
       .replace(/[^\w\s-]/g, '') // Remove special characters
       .replace(/\s+/g, '-') // Replace spaces with hyphens
       .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-      .trim();
+      .replace(/^-+|-+$/g, ''); // Strip leading/trailing hyphens
+
+    // Check for slug collisions and append deterministic suffix if needed
+    let slug = baseSlug;
+    let suffix = 2;
+    const EventModel = this.constructor as Model<IEvent>;
+
+    while (true) {
+      const existingEvent = await EventModel.findOne({ slug, _id: { $ne: this._id } });
+      if (!existingEvent) {
+        // Slug is unique
+        break;
+      }
+      // Slug exists, append deterministic suffix and try again
+      slug = `${baseSlug}-${suffix}`;
+      suffix++;
+    }
+
+    this.slug = slug;
   }
 
   // Validate and normalize date to ISO format (YYYY-MM-DD)
@@ -172,7 +192,7 @@ eventSchema.pre<EventDocument>('save', function (this: EventDocument) {
     'organizer',
   ];
   for (const field of requiredFields) {
-    const value = this[field as keyof EventDocument];
+    const value = this[field as keyof IEvent];
     if (typeof value === 'string' && !value.trim()) {
       throw new Error(`${field} cannot be empty`);
     }
@@ -182,7 +202,7 @@ eventSchema.pre<EventDocument>('save', function (this: EventDocument) {
 /**
  * Create or retrieve the Event model with proper typing
  */
-const Event: Model<EventDocument> =
-  mongoose.models.Event || mongoose.model<EventDocument>('Event', eventSchema);
+const Event: Model<IEvent> =
+  mongoose.models.Event || mongoose.model<IEvent>('Event', eventSchema);
 
-export { Event, type EventDocument };
+export { Event, type IEvent };

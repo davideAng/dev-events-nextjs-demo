@@ -31,7 +31,10 @@ const bookingSchema = new Schema<BookingDocument>(
       required: [true, 'Email is required'],
       lowercase: true,
       trim: true,
-      validate: [emailRegex, 'Please provide a valid email address'],
+      validate: {
+        validator: (v: string) => emailRegex.test(v),
+        message: 'Please provide a valid email address',
+      },
     },
   },
   { timestamps: true }
