@@ -5,7 +5,6 @@ import Link from "next/link";
 import posthog from "posthog-js";
 
 interface Props {
-  id?: string;
   title: string;
   image: string;
   slug?: string;
